@@ -1,7 +1,7 @@
 package main
 
-import "fmt"
+import pod "github.com/DragonEmperor9480/yorasys/internal/Pod"
 
 func main() {
-	fmt.Println("Hello YoraSys")
+	pod.ScanAnamolies("registry/scanData_windows.yaml")
 }
