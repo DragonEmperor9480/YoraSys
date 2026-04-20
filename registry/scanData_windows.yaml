@@ -1,0 +1,72 @@
+schema:
+  name: YoraSys Registry Windows
+  version: 1.0
+
+platform: windows
+
+defaults:
+  dry_run_supported: true
+  requires_admin: false
+  cleanup_method: delete_contents
+  confidence_min: 0.0
+  confidence_max: 1.0
+
+caches:
+  - id: 1
+    name: npm cache
+    category: developer
+    description: NPM package tarball cache used by installs and updates.
+    paths:
+      - '%APPDATA%\npm-cache'
+      - 'C:\Users\*\AppData\Roaming\npm-cache'
+
+  - id: 2
+    name: user temp
+    category: temporary
+    description: User temporary files (TEMP/TMP/AppData Local Temp aliases).
+    paths:
+      - '%TEMP%'
+      - '%TMP%'
+      - 'C:\Users\*\AppData\Local\Temp'
+
+  - id: 3
+    name: appdata locallow temp
+    category: temporary
+    description: Temporary files under AppData LocalLow Temp.
+    paths:
+      - 'C:\Users\*\AppData\LocalLow\Temp'
+
+  - id: 4
+    name: appdata roaming temp
+    category: temporary
+    description: Temporary files under AppData Roaming Temp.
+    paths:
+      - 'C:\Users\*\AppData\Roaming\Temp'
+
+  - id: 5
+    name: windows temp
+    category: temporary
+    description: System temporary files under Windows Temp.
+    paths:
+      - 'C:\Windows\Temp'
+
+  - id: 6
+    name: programdata temp
+    category: temporary
+    description: Shared temporary files under ProgramData Temp.
+    paths:
+      - 'C:\ProgramData\Temp'
+
+  - id: 7
+    name: root temp
+    category: temporary
+    description: Temporary files under the root Temp directory.
+    paths:
+      - 'C:\Temp'
+
+  - id: 8
+    name: windows prefetch
+    category: system
+    description: Windows prefetch data used to speed up app and boot loading.
+    paths:
+      - 'C:\Windows\Prefetch'
