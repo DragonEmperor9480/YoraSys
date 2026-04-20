@@ -17,25 +17,25 @@ func ScanAnamolies(registryPath string) {
 
 	fmt.Printf("Registry: %s | Version: %v | Platform: %s", reg.Schema.Name, reg.Schema.Version, reg.Platform)
 
-	for _, cache := range reg.Caches {
-		fmt.Printf("ID: %d\n", cache.ID)
-		fmt.Printf("Name: %s\n", cache.Name)
-		fmt.Printf("Category: %s\n", cache.Category)
-		fmt.Printf("Description: %s\n", cache.Description)
+	for _, valCache := range reg.Caches {
+		cachePresent := false
+		fmt.Printf("\nCache: %s (ID: %d)\n", valCache.Name, valCache.ID)
 
-		if len(cache.Paths) == 0 {
-			fmt.Println("Paths: none")
-			continue
+		for _, cachePath := range valCache.Paths {
+			exists, _, err := checkPath(cachePath)
+			if err != nil {
+				fmt.Printf("program.exe is meow meow %v\n", err)
+				continue
+			}
+			if exists {
+				cachePresent = true
+				fmt.Printf("Found something\n", cachePath)
+			} else {
+				fmt.Printf("Meh didnt find a thing\n", cachePath)
+			}
 		}
-
-		fmt.Println("Paths:")
-		for j, p := range cache.Paths {
-			fmt.Printf("  %d. %s\n", j+1, p)
-		}
-
-		fmt.Println()
+		fmt.Printf("hmmmmm %v\n", cachePresent)
 	}
-
 }
 
 func loadRegistry(path string) (schematics.Registry, error) {
@@ -61,4 +61,16 @@ func loadRegistry(path string) (schematics.Registry, error) {
 
 	return reg, nil
 
+}
+
+func checkPath(path string) (exists bool, isDir bool, err error) {
+	info, err := os.Stat(path)
+	if err == nil {
+		return true, info.IsDir(), nil
+	}
+
+	if errors.Is(err, os.ErrNotExist) {
+		return false, false, nil
+	}
+	return false, false, err
 }
