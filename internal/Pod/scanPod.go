@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	schematics "github.com/DragonEmperor9480/yorasys/internal/Schematics"
@@ -17,7 +18,14 @@ func ScanAnamolies(reg schematics.Registry) {
 		fmt.Printf("\nCache: %s (ID: %d)\n", valCache.Name, valCache.ID)
 
 		for _, cachePath := range valCache.Paths {
-			subPaths, err := handleFullPath(cachePath)
+
+			expandedPath, missing := expandWindowsEnv(cachePath)
+			if len(missing) > 0 {
+				fmt.Printf("Unresolved env vars in %s: %v\n", cachePath, missing)
+				continue
+			}
+
+			subPaths, err := handleFullPath(expandedPath)
 			if err != nil {
 				fmt.Printf("Wrong Yaml data on %v, err: %v\n", cachePath, err)
 				continue
@@ -68,4 +76,21 @@ func handleFullPath(path string) ([]string, error) {
 	}
 
 	return found, nil
+}
+
+var winEnv = regexp.MustCompile(`%([A-Za-z0-9_]+)%`)
+
+func expandWindowsEnv(path string) (string, []string) {
+	unresolved := []string{}
+
+	expanded := winEnv.ReplaceAllStringFunc(path, func(s string) string {
+		key := strings.Trim(s, "%")
+		val := os.Getenv(key)
+		if val == "" {
+			unresolved = append(unresolved, key)
+			return s
+		}
+		return val
+	})
+	return expanded, unresolved
 }
