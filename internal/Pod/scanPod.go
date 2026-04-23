@@ -3,6 +3,7 @@ package pod
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -12,14 +13,13 @@ import (
 )
 
 func ScanAnamolies(reg schematics.Registry) {
-
 	for _, valCache := range reg.Caches {
 		cachePresent := false
+		var cacheTotalBytes int64
 		seen := map[string]bool{}
 		fmt.Printf("\nCache: %s (ID: %d)\n", valCache.Name, valCache.ID)
 
 		for _, cachePath := range valCache.Paths {
-
 			expandedPath, missing := expandWindowsEnv(cachePath)
 			if len(missing) > 0 {
 				fmt.Printf("Unresolved env vars in %s: %v\n", cachePath, missing)
@@ -44,20 +44,28 @@ func ScanAnamolies(reg schematics.Registry) {
 				}
 				seen[normalizedPath] = true
 
-				exists, _, err := checkPath(subPath)
+				exists, isDir, err := checkPath(subPath)
 				if err != nil {
 					fmt.Printf("program.exe is meow meow %v\n", err)
 					continue
 				}
-				if exists {
-					cachePresent = true
-					fmt.Printf("Found something: %s\n", subPath)
-				} else {
+				if !exists {
 					fmt.Printf("Meh didnt find a thing: %s\n", subPath)
+					continue
 				}
+
+				cachePresent = true
+				sizeBytes, err := pathSize(subPath, isDir)
+				if err != nil {
+					fmt.Printf("Found something: %s | size error: %v\n", subPath, err)
+					continue
+				}
+
+				cacheTotalBytes += sizeBytes
+				fmt.Printf("Found something: %s | size: %d bytes\n", subPath, sizeBytes)
 			}
 		}
-		fmt.Printf("hmmmmm %v\n", cachePresent)
+		fmt.Printf("hmmmmm %v | total_size_bytes: %d\n", cachePresent, cacheTotalBytes)
 	}
 }
 
@@ -101,4 +109,41 @@ func expandWindowsEnv(path string) (string, []string) {
 		return val
 	})
 	return expanded, unresolved
+}
+
+func folderSize(path string) (int64, error) {
+	var total int64
+
+	err := filepath.WalkDir(path, func(_ string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil // skip inaccessible entries
+		}
+		if d.IsDir() {
+			return nil
+		}
+
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		total += info.Size()
+		return nil
+	})
+
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
+func pathSize(path string, isDir bool) (int64, error) {
+	if isDir {
+		return folderSize(path)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0, err
+	}
+	return info.Size(), nil
 }
