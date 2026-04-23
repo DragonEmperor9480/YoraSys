@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	schematics "github.com/DragonEmperor9480/yorasys/internal/Schematics"
 	"gopkg.in/yaml.v3"
@@ -22,6 +24,14 @@ func ScanAnamolies(registryPath string) {
 		fmt.Printf("\nCache: %s (ID: %d)\n", valCache.Name, valCache.ID)
 
 		for _, cachePath := range valCache.Paths {
+			subPaths, err := handleFullPath(cachePath)
+			if err != nil {
+				fmt.Printf("Wrong Yaml data on %v, err: %v\n", cachePath, err)
+			}
+
+			if len(subPaths) == 0 {
+				fmt.Printf("am never gonna execute but justtt lets see", cachePath)
+			}
 			exists, _, err := checkPath(cachePath)
 			if err != nil {
 				fmt.Printf("program.exe is meow meow %v\n", err)
@@ -73,4 +83,17 @@ func checkPath(path string) (exists bool, isDir bool, err error) {
 		return false, false, nil
 	}
 	return false, false, err
+}
+
+func handleFullPath(path string) ([]string, error) {
+	if !strings.Contains(path, "*") {
+		return []string{path}, nil
+	}
+
+	found, err := filepath.Glob(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return found, nil
 }
