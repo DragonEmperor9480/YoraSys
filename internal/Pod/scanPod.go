@@ -8,16 +8,9 @@ import (
 	"strings"
 
 	schematics "github.com/DragonEmperor9480/yorasys/internal/Schematics"
-	"gopkg.in/yaml.v3"
 )
 
-func ScanAnamolies(registryPath string) {
-	reg, err := loadRegistry(registryPath)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	fmt.Printf("Registry: %s | Version: %v | Platform: %s", reg.Schema.Name, reg.Schema.Version, reg.Platform)
+func ScanAnamolies(reg schematics.Registry) {
 
 	for _, valCache := range reg.Caches {
 		cachePresent := false
@@ -46,31 +39,6 @@ func ScanAnamolies(registryPath string) {
 		}
 		fmt.Printf("hmmmmm %v\n", cachePresent)
 	}
-}
-
-func loadRegistry(path string) (schematics.Registry, error) {
-	val, err := os.ReadFile(path)
-	if err != nil {
-		return schematics.Registry{}, errors.New("Failed to Read the Registry")
-	}
-
-	var reg schematics.Registry
-
-	if err := yaml.Unmarshal(val, &reg); err != nil {
-		return reg, errors.New("Failed to Parse yaml")
-
-	}
-
-	if reg.Platform == "" {
-		return reg, errors.New("Invalid OS")
-	}
-	if len(reg.Caches) == 0 {
-		return reg, errors.New("No cache data found")
-
-	}
-
-	return reg, nil
-
 }
 
 func checkPath(path string) (exists bool, isDir bool, err error) {
