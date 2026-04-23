@@ -20,21 +20,25 @@ func ScanAnamolies(reg schematics.Registry) {
 			subPaths, err := handleFullPath(cachePath)
 			if err != nil {
 				fmt.Printf("Wrong Yaml data on %v, err: %v\n", cachePath, err)
+				continue
 			}
 
 			if len(subPaths) == 0 {
-				fmt.Printf("am never gonna execute but justtt lets see", cachePath)
+				fmt.Printf("am never gonna execute but justtt lets see... path: %v", cachePath)
 			}
-			exists, _, err := checkPath(cachePath)
-			if err != nil {
-				fmt.Printf("program.exe is meow meow %v\n", err)
-				continue
-			}
-			if exists {
-				cachePresent = true
-				fmt.Printf("Found something\n", cachePath)
-			} else {
-				fmt.Printf("Meh didnt find a thing\n", cachePath)
+
+			for _, subPath := range subPaths {
+				exists, _, err := checkPath(subPath)
+				if err != nil {
+					fmt.Printf("program.exe is meow meow %v\n", err)
+					continue
+				}
+				if exists {
+					cachePresent = true
+					fmt.Printf("Found something: %s\n", subPath)
+				} else {
+					fmt.Printf("Meh didnt find a thing: %s\n", subPath)
+				}
 			}
 		}
 		fmt.Printf("hmmmmm %v\n", cachePresent)
