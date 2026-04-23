@@ -33,6 +33,7 @@ func ScanAnamolies(reg schematics.Registry) {
 
 			if len(subPaths) == 0 {
 				fmt.Printf("am never gonna execute but justtt lets see... path: %v", cachePath)
+				continue
 			}
 
 			for _, subPath := range subPaths {
