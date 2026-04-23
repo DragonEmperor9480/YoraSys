@@ -62,10 +62,10 @@ func ScanAnamolies(reg schematics.Registry) {
 				}
 
 				cacheTotalBytes += sizeBytes
-				fmt.Printf("Found something: %s | size: %d bytes\n", subPath, sizeBytes)
+				fmt.Printf("Found something: %s | size: %.2f MB (%d bytes)\n", subPath, bytesToMB(sizeBytes), sizeBytes)
 			}
 		}
-		fmt.Printf("hmmmmm %v | total_size_bytes: %d\n", cachePresent, cacheTotalBytes)
+		fmt.Printf("hmmmmm %v | total_size: %.2f MB (%d bytes)\n", cachePresent, bytesToMB(cacheTotalBytes), cacheTotalBytes)
 	}
 }
 
@@ -146,4 +146,8 @@ func pathSize(path string, isDir bool) (int64, error) {
 		return 0, err
 	}
 	return info.Size(), nil
+}
+
+func bytesToMB(bytes int64) float64 {
+	return float64(bytes) / (1024 * 1024)
 }
