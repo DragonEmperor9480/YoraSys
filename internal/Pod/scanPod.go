@@ -15,6 +15,7 @@ func ScanAnamolies(reg schematics.Registry) {
 
 	for _, valCache := range reg.Caches {
 		cachePresent := false
+		seen := map[string]bool{}
 		fmt.Printf("\nCache: %s (ID: %d)\n", valCache.Name, valCache.ID)
 
 		for _, cachePath := range valCache.Paths {
@@ -37,6 +38,12 @@ func ScanAnamolies(reg schematics.Registry) {
 			}
 
 			for _, subPath := range subPaths {
+				normalizedPath := strings.ToLower(filepath.Clean(subPath))
+				if seen[normalizedPath] {
+					continue
+				}
+				seen[normalizedPath] = true
+
 				exists, _, err := checkPath(subPath)
 				if err != nil {
 					fmt.Printf("program.exe is meow meow %v\n", err)
