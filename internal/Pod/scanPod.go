@@ -12,11 +12,15 @@ import (
 	schematics "github.com/DragonEmperor9480/yorasys/internal/Schematics"
 )
 
-func ScanAnamolies(reg schematics.Registry) {
+func ScanAnamolies(reg schematics.Registry) map[string]int64 {
+	fileSizeMap := map[string]int64{}
+
 	for _, valCache := range reg.Caches {
 		cachePresent := false
 		var cacheTotalBytes int64
 		seen := map[string]bool{}
+		seenFiles := map[string]bool{}
+		cacheFileSizeMap := map[string]int64{}
 		fmt.Printf("\nCache: %s (ID: %d)\n", valCache.Name, valCache.ID)
 
 		for _, cachePath := range valCache.Paths {
@@ -55,18 +59,35 @@ func ScanAnamolies(reg schematics.Registry) {
 				}
 
 				cachePresent = true
-				sizeBytes, err := pathSize(subPath, isDir)
+				pathFileSizes, err := collectPathSizes(subPath, isDir)
 				if err != nil {
 					fmt.Printf("Found something: %s | size error: %v\n", subPath, err)
 					continue
 				}
 
-				cacheTotalBytes += sizeBytes
-				fmt.Printf("Found something: %s | size: %.2f MB (%d bytes)\n", subPath, bytesToMB(sizeBytes), sizeBytes)
+				var pathTotalBytes int64
+				var addedFiles int
+				for filePath, sizeBytes := range pathFileSizes {
+					normalizedFilePath := strings.ToLower(filepath.Clean(filePath))
+					if seenFiles[normalizedFilePath] {
+						continue
+					}
+					seenFiles[normalizedFilePath] = true
+
+					cacheFileSizeMap[filePath] = sizeBytes
+					fileSizeMap[filePath] = sizeBytes
+					pathTotalBytes += sizeBytes
+					addedFiles++
+				}
+
+				cacheTotalBytes += pathTotalBytes
+				fmt.Printf("Found something: %s | size: %.2f MB (%d bytes) | files: %d\n", subPath, bytesToMB(pathTotalBytes), pathTotalBytes, addedFiles)
 			}
 		}
-		fmt.Printf("hmmmmm %v | total_size: %.2f MB (%d bytes)\n", cachePresent, bytesToMB(cacheTotalBytes), cacheTotalBytes)
+		fmt.Printf("hmmmmm %v | total_size: %.2f MB (%d bytes) | mapped_files: %d\n", cachePresent, bytesToMB(cacheTotalBytes), cacheTotalBytes, len(cacheFileSizeMap))
 	}
+
+	return fileSizeMap
 }
 
 func checkPath(path string) (exists bool, isDir bool, err error) {
@@ -111,10 +132,19 @@ func expandWindowsEnv(path string) (string, []string) {
 	return expanded, unresolved
 }
 
-func folderSize(path string) (int64, error) {
-	var total int64
+func collectPathSizes(path string, isDir bool) (map[string]int64, error) {
+	pathSizes := map[string]int64{}
 
-	err := filepath.WalkDir(path, func(_ string, d fs.DirEntry, err error) error {
+	if !isDir {
+		info, err := os.Stat(path)
+		if err != nil {
+			return nil, err
+		}
+		pathSizes[path] = info.Size()
+		return pathSizes, nil
+	}
+
+	err := filepath.WalkDir(path, func(filePath string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil // skip inaccessible entries
 		}
@@ -126,26 +156,14 @@ func folderSize(path string) (int64, error) {
 		if err != nil {
 			return nil
 		}
-		total += info.Size()
+		pathSizes[filePath] = info.Size()
 		return nil
 	})
 
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return total, nil
-}
-
-func pathSize(path string, isDir bool) (int64, error) {
-	if isDir {
-		return folderSize(path)
-	}
-
-	info, err := os.Stat(path)
-	if err != nil {
-		return 0, err
-	}
-	return info.Size(), nil
+	return pathSizes, nil
 }
 
 func bytesToMB(bytes int64) float64 {
