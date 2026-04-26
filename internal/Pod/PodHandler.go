@@ -11,6 +11,12 @@ func BootUpPod(regPath string) {
 	fmt.Printf("Registry: %s | Version: %v | Platform: %s", reg.Schema.Name, reg.Schema.Version, reg.Platform)
 
 	//If fine then lets start the Scanning
-	ScanAnamolies(reg)
+	scanData := ScanAnamolies(reg)
+	archivePath, err := WriteScanArchive(scanData)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Printf("\nScan JSON written to %s\n", archivePath)
 
 }
