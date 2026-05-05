@@ -4,7 +4,7 @@ import (
 	"errors"
 	"os"
 
-	schematics "github.com/DragonEmperor9480/yorasys/internal/Schematics"
+	schematics "github.com/DragonEmperor9480/yorasys/Pod/Schematics"
 	"gopkg.in/yaml.v3"
 )
 

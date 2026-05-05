@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	schematics "github.com/DragonEmperor9480/yorasys/internal/Schematics"
+	schematics "github.com/DragonEmperor9480/yorasys/Pod/Schematics"
 )
 
 func ScanAnamolies(reg schematics.Registry) map[string]int64 {
