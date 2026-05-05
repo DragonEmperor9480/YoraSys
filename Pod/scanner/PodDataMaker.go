@@ -12,46 +12,64 @@ import (
 const archiveDir = "archives"
 
 type scanArchive struct {
-	GeneratedAt    string             `json:"generated_at"`
+	GeneratedAt    string                     `json:"generated_at"`
+	TotalFiles     int                        `json:"total_files"`
+	TotalSizeBytes int64                      `json:"total_size_bytes"`
+	ScannedPaths   map[string]scanArchivePath `json:"scanned_paths"`
+}
+
+type scanArchivePath struct {
 	TotalFiles     int                `json:"total_files"`
 	TotalSizeBytes int64              `json:"total_size_bytes"`
 	Files          []scanArchiveEntry `json:"files"`
 }
 
 type scanArchiveEntry struct {
-	Path      string `json:"path"`
+	Name      string `json:"name"`
 	SizeBytes int64  `json:"size_bytes"`
 }
 
-func WriteScanArchive(fileSizeMap map[string]int64) (string, error) {
-	if err := os.MkdirAll(archiveDir, 0755); err != nil {
+func WriteScanArchive(scanData ScanData) (string, error) {
+	generatedAt := time.Now()
+	archiveFolder := filepath.Join(archiveDir, fmt.Sprintf("scan_%s", generatedAt.Format("20060102_150405")))
+	if err := os.MkdirAll(archiveFolder, 0755); err != nil {
 		return "", fmt.Errorf("failed to create archive folder: %w", err)
 	}
 
-	paths := make([]string, 0, len(fileSizeMap))
-	for path := range fileSizeMap {
-		paths = append(paths, path)
-	}
-	sort.Strings(paths)
-
-	generatedAt := time.Now()
 	archive := scanArchive{
-		GeneratedAt: generatedAt.Format(time.RFC3339),
-		TotalFiles:  len(paths),
-		Files:       make([]scanArchiveEntry, 0, len(paths)),
+		GeneratedAt:    generatedAt.Format(time.RFC3339),
+		TotalFiles:     scanData.TotalFiles,
+		TotalSizeBytes: scanData.TotalSizeBytes,
+		ScannedPaths:   map[string]scanArchivePath{},
 	}
 
-	for _, path := range paths {
-		sizeBytes := fileSizeMap[path]
-		archive.TotalSizeBytes += sizeBytes
-		archive.Files = append(archive.Files, scanArchiveEntry{
-			Path:      path,
-			SizeBytes: sizeBytes,
+	rootPaths := make([]string, 0, len(scanData.ScannedPaths))
+	for rootPath := range scanData.ScannedPaths {
+		rootPaths = append(rootPaths, rootPath)
+	}
+	sort.Strings(rootPaths)
+
+	for _, rootPath := range rootPaths {
+		pathData := scanData.ScannedPaths[rootPath]
+		files := make([]scanArchiveEntry, 0, len(pathData.Files))
+		for _, file := range pathData.Files {
+			files = append(files, scanArchiveEntry{
+				Name:      file.Name,
+				SizeBytes: file.SizeBytes,
+			})
+		}
+		sort.Slice(files, func(i, j int) bool {
+			return files[i].Name < files[j].Name
 		})
+
+		archive.ScannedPaths[rootPath] = scanArchivePath{
+			TotalFiles:     pathData.TotalFiles,
+			TotalSizeBytes: pathData.TotalSizeBytes,
+			Files:          files,
+		}
 	}
 
-	fileName := fmt.Sprintf("scan_%s.json", generatedAt.Format("20060102_150405"))
-	archivePath := filepath.Join(archiveDir, fileName)
+	archivePath := filepath.Join(archiveFolder, "cache_files.json")
 
 	file, err := os.Create(archivePath)
 	if err != nil {

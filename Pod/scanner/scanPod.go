@@ -7,20 +7,41 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	schematics "github.com/DragonEmperor9480/yorasys/Pod/Schematics"
 )
 
-func ScanAnamolies(reg schematics.Registry) map[string]int64 {
-	fileSizeMap := map[string]int64{}
+type ScanData struct {
+	TotalFiles     int
+	TotalSizeBytes int64
+	ScannedPaths   map[string]ScannedPathData
+}
+
+type ScannedPathData struct {
+	TotalFiles     int
+	TotalSizeBytes int64
+	Files          []ScannedFileData
+}
+
+type ScannedFileData struct {
+	Name      string
+	SizeBytes int64
+}
+
+func ScanAnamolies(reg schematics.Registry) ScanData {
+	scanData := ScanData{
+		ScannedPaths: map[string]ScannedPathData{},
+	}
+	globalSeenFiles := map[string]bool{}
 
 	for _, valCache := range reg.Caches {
 		cachePresent := false
 		var cacheTotalBytes int64
+		var cacheMappedFiles int
 		seen := map[string]bool{}
 		seenFiles := map[string]bool{}
-		cacheFileSizeMap := map[string]int64{}
 		fmt.Printf("\nCache: %s (ID: %d)\n", valCache.Name, valCache.ID)
 
 		for _, cachePath := range valCache.Paths {
@@ -65,29 +86,53 @@ func ScanAnamolies(reg schematics.Registry) map[string]int64 {
 					continue
 				}
 
+				filePaths := make([]string, 0, len(pathFileSizes))
+				for filePath := range pathFileSizes {
+					filePaths = append(filePaths, filePath)
+				}
+				sort.Strings(filePaths)
+
+				pathData := scanData.ScannedPaths[subPath]
 				var pathTotalBytes int64
 				var addedFiles int
-				for filePath, sizeBytes := range pathFileSizes {
+				for _, filePath := range filePaths {
+					sizeBytes := pathFileSizes[filePath]
 					normalizedFilePath := strings.ToLower(filepath.Clean(filePath))
 					if seenFiles[normalizedFilePath] {
 						continue
 					}
 					seenFiles[normalizedFilePath] = true
 
-					cacheFileSizeMap[filePath] = sizeBytes
-					fileSizeMap[filePath] = sizeBytes
+					if globalSeenFiles[normalizedFilePath] {
+						continue
+					}
+					globalSeenFiles[normalizedFilePath] = true
+
+					pathData.Files = append(pathData.Files, ScannedFileData{
+						Name:      relativeFileName(subPath, filePath, isDir),
+						SizeBytes: sizeBytes,
+					})
+					pathData.TotalFiles++
+					pathData.TotalSizeBytes += sizeBytes
+
+					scanData.TotalFiles++
+					scanData.TotalSizeBytes += sizeBytes
 					pathTotalBytes += sizeBytes
 					addedFiles++
 				}
 
+				if pathData.TotalFiles > 0 {
+					scanData.ScannedPaths[subPath] = pathData
+				}
 				cacheTotalBytes += pathTotalBytes
+				cacheMappedFiles += addedFiles
 				fmt.Printf("Found something: %s | size: %.2f MB (%d bytes) | files: %d\n", subPath, bytesToMB(pathTotalBytes), pathTotalBytes, addedFiles)
 			}
 		}
-		fmt.Printf("hmmmmm %v | total_size: %.2f MB (%d bytes) | mapped_files: %d\n", cachePresent, bytesToMB(cacheTotalBytes), cacheTotalBytes, len(cacheFileSizeMap))
+		fmt.Printf("hmmmmm %v | total_size: %.2f MB (%d bytes) | mapped_files: %d\n", cachePresent, bytesToMB(cacheTotalBytes), cacheTotalBytes, cacheMappedFiles)
 	}
 
-	return fileSizeMap
+	return scanData
 }
 
 func checkPath(path string) (exists bool, isDir bool, err error) {
@@ -164,6 +209,18 @@ func collectPathSizes(path string, isDir bool) (map[string]int64, error) {
 		return nil, err
 	}
 	return pathSizes, nil
+}
+
+func relativeFileName(rootPath string, filePath string, isDir bool) string {
+	if !isDir {
+		return filepath.Base(filePath)
+	}
+
+	relPath, err := filepath.Rel(rootPath, filePath)
+	if err != nil || relPath == "." || strings.HasPrefix(relPath, "..") {
+		return filePath
+	}
+	return relPath
 }
 
 func bytesToMB(bytes int64) float64 {
