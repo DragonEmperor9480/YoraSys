@@ -9,7 +9,11 @@ import (
 	"time"
 )
 
-const archiveDir = "archives"
+const (
+	archiveDir         = "archives"
+	scanResultDirName  = "scanres"
+	cleanResultDirName = "cleanres"
+)
 
 type scanArchive struct {
 	GeneratedAt    string                     `json:"generated_at"`
@@ -31,7 +35,13 @@ type scanArchiveEntry struct {
 
 func WriteScanArchive(scanData ScanData) (string, error) {
 	generatedAt := time.Now()
-	archiveFolder := filepath.Join(archiveDir, fmt.Sprintf("scan_%s", generatedAt.Format("20060102_150405")))
+	scanResultDir := filepath.Join(archiveDir, scanResultDirName)
+	cleanResultDir := filepath.Join(archiveDir, cleanResultDirName)
+	if err := os.MkdirAll(cleanResultDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create clean result folder: %w", err)
+	}
+
+	archiveFolder := filepath.Join(scanResultDir, fmt.Sprintf("scan_%s", generatedAt.Format("20060102_150405")))
 	if err := os.MkdirAll(archiveFolder, 0755); err != nil {
 		return "", fmt.Errorf("failed to create archive folder: %w", err)
 	}

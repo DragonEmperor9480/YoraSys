@@ -1,2 +1,7 @@
 internalfiles/
 archives/*.json
+archives/scan_*/
+archives/scanres/scan_*/
+archives/cleanres/*.json
+archives/cleanres/clean_*/
+Bunker/*
