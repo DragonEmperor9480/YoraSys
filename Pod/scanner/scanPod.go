@@ -1,38 +1,20 @@
 package pod
 
 import (
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
 	schematics "github.com/DragonEmperor9480/yorasys/Pod/Schematics"
+	"github.com/DragonEmperor9480/yorasys/Pod/service"
 )
 
-type ScanData struct {
-	TotalFiles     int
-	TotalSizeBytes int64
-	ScannedPaths   map[string]ScannedPathData
-}
-
-type ScannedPathData struct {
-	TotalFiles     int
-	TotalSizeBytes int64
-	Files          []ScannedFileData
-}
-
-type ScannedFileData struct {
-	Name      string
-	SizeBytes int64
-}
-
-func ScanAnamolies(reg schematics.Registry) ScanData {
-	scanData := ScanData{
-		ScannedPaths: map[string]ScannedPathData{},
+func ScanAnamolies(reg schematics.Registry) schematics.ScanData {
+	scanData := schematics.ScanData{
+		ScannedPaths: map[string]schematics.ScannedPathData{},
 	}
 	globalSeenFiles := map[string]bool{}
 
@@ -45,13 +27,13 @@ func ScanAnamolies(reg schematics.Registry) ScanData {
 		fmt.Printf("\nCache: %s (ID: %d)\n", valCache.Name, valCache.ID)
 
 		for _, cachePath := range valCache.Paths {
-			expandedPath, missing := expandWindowsEnv(cachePath)
+			expandedPath, missing := service.ExpandWindowsEnv(cachePath)
 			if len(missing) > 0 {
 				fmt.Printf("Unresolved env vars in %s: %v\n", cachePath, missing)
 				continue
 			}
 
-			subPaths, err := handleFullPath(expandedPath)
+			subPaths, err := service.HandleFullPath(expandedPath)
 			if err != nil {
 				fmt.Printf("Wrong Yaml data on %v, err: %v\n", cachePath, err)
 				continue
@@ -69,7 +51,7 @@ func ScanAnamolies(reg schematics.Registry) ScanData {
 				}
 				seen[normalizedPath] = true
 
-				exists, isDir, err := checkPath(subPath)
+				exists, isDir, err := service.CheckPath(subPath)
 				if err != nil {
 					fmt.Printf("program.exe is meow meow %v\n", err)
 					continue
@@ -108,8 +90,8 @@ func ScanAnamolies(reg schematics.Registry) ScanData {
 					}
 					globalSeenFiles[normalizedFilePath] = true
 
-					pathData.Files = append(pathData.Files, ScannedFileData{
-						Name:      relativeFileName(subPath, filePath, isDir),
+					pathData.Files = append(pathData.Files, schematics.ScannedFileData{
+						Name:      service.RelativeFileName(subPath, filePath, isDir),
 						SizeBytes: sizeBytes,
 					})
 					pathData.TotalFiles++
@@ -133,48 +115,6 @@ func ScanAnamolies(reg schematics.Registry) ScanData {
 	}
 
 	return scanData
-}
-
-func checkPath(path string) (exists bool, isDir bool, err error) {
-	info, err := os.Stat(path)
-	if err == nil {
-		return true, info.IsDir(), nil
-	}
-
-	if errors.Is(err, os.ErrNotExist) {
-		return false, false, nil
-	}
-	return false, false, err
-}
-
-func handleFullPath(path string) ([]string, error) {
-	if !strings.Contains(path, "*") {
-		return []string{path}, nil
-	}
-
-	found, err := filepath.Glob(path)
-	if err != nil {
-		return nil, err
-	}
-
-	return found, nil
-}
-
-var winEnv = regexp.MustCompile(`%([A-Za-z0-9_]+)%`)
-
-func expandWindowsEnv(path string) (string, []string) {
-	unresolved := []string{}
-
-	expanded := winEnv.ReplaceAllStringFunc(path, func(s string) string {
-		key := strings.Trim(s, "%")
-		val := os.Getenv(key)
-		if val == "" {
-			unresolved = append(unresolved, key)
-			return s
-		}
-		return val
-	})
-	return expanded, unresolved
 }
 
 func collectPathSizes(path string, isDir bool) (map[string]int64, error) {
@@ -209,18 +149,6 @@ func collectPathSizes(path string, isDir bool) (map[string]int64, error) {
 		return nil, err
 	}
 	return pathSizes, nil
-}
-
-func relativeFileName(rootPath string, filePath string, isDir bool) string {
-	if !isDir {
-		return filepath.Base(filePath)
-	}
-
-	relPath, err := filepath.Rel(rootPath, filePath)
-	if err != nil || relPath == "." || strings.HasPrefix(relPath, "..") {
-		return filePath
-	}
-	return relPath
 }
 
 func bytesToMB(bytes int64) float64 {
