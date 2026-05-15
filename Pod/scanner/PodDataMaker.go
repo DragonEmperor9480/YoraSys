@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sort"
 	"time"
+
+	schematics "github.com/DragonEmperor9480/yorasys/Pod/Schematics"
 )
 
 const (
@@ -15,25 +17,7 @@ const (
 	cleanResultDirName = "cleanres"
 )
 
-type scanArchive struct {
-	GeneratedAt    string                     `json:"generated_at"`
-	TotalFiles     int                        `json:"total_files"`
-	TotalSizeBytes int64                      `json:"total_size_bytes"`
-	ScannedPaths   map[string]scanArchivePath `json:"scanned_paths"`
-}
-
-type scanArchivePath struct {
-	TotalFiles     int                `json:"total_files"`
-	TotalSizeBytes int64              `json:"total_size_bytes"`
-	Files          []scanArchiveEntry `json:"files"`
-}
-
-type scanArchiveEntry struct {
-	Name      string `json:"name"`
-	SizeBytes int64  `json:"size_bytes"`
-}
-
-func WriteScanArchive(scanData ScanData) (string, error) {
+func WriteScanArchive(scanData schematics.ScanData) (string, error) {
 	generatedAt := time.Now()
 	scanResultDir := filepath.Join(archiveDir, scanResultDirName)
 	cleanResultDir := filepath.Join(archiveDir, cleanResultDirName)
@@ -46,11 +30,11 @@ func WriteScanArchive(scanData ScanData) (string, error) {
 		return "", fmt.Errorf("failed to create archive folder: %w", err)
 	}
 
-	archive := scanArchive{
+	archive := schematics.ScanArchive{
 		GeneratedAt:    generatedAt.Format(time.RFC3339),
 		TotalFiles:     scanData.TotalFiles,
 		TotalSizeBytes: scanData.TotalSizeBytes,
-		ScannedPaths:   map[string]scanArchivePath{},
+		ScannedPaths:   map[string]schematics.ScanArchivePath{},
 	}
 
 	rootPaths := make([]string, 0, len(scanData.ScannedPaths))
@@ -61,9 +45,9 @@ func WriteScanArchive(scanData ScanData) (string, error) {
 
 	for _, rootPath := range rootPaths {
 		pathData := scanData.ScannedPaths[rootPath]
-		files := make([]scanArchiveEntry, 0, len(pathData.Files))
+		files := make([]schematics.ScanArchiveEntry, 0, len(pathData.Files))
 		for _, file := range pathData.Files {
-			files = append(files, scanArchiveEntry{
+			files = append(files, schematics.ScanArchiveEntry{
 				Name:      file.Name,
 				SizeBytes: file.SizeBytes,
 			})
@@ -72,7 +56,7 @@ func WriteScanArchive(scanData ScanData) (string, error) {
 			return files[i].Name < files[j].Name
 		})
 
-		archive.ScannedPaths[rootPath] = scanArchivePath{
+		archive.ScannedPaths[rootPath] = schematics.ScanArchivePath{
 			TotalFiles:     pathData.TotalFiles,
 			TotalSizeBytes: pathData.TotalSizeBytes,
 			Files:          files,
