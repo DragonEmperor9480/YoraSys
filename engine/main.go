@@ -1,7 +1,12 @@
 package main
 
-import pod "github.com/DragonEmperor9480/yorasys/Pod/scanner"
+import (
+	pod "github.com/DragonEmperor9480/yorasys/Pod/scanner"
+)
+
+const defaultRegistryPath = "registry/scanData_windows.yaml"
 
 func main() {
-	pod.BootUpPod("registry/scanData_windows.yaml")
+	pod.BootUpScanPod(defaultRegistryPath)
+
 }

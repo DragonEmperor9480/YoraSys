@@ -1,9 +1,11 @@
 package pod
 
-import "fmt"
+import (
+	"fmt"
+)
 
-//BootUpPod is the entry point for the scanner which loads registry and passes it to scan finction
-func BootUpPod(regPath string) {
+// BootUpPod is the entry point for the scanner which loads registry and passes it to scan finction
+func BootUpScanPod(regPath string) {
 	reg, err := loadRegistry(regPath)
 	if err != nil {
 		fmt.Println(err)
